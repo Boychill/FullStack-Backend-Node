@@ -28,7 +28,8 @@ const productSchema = mongoose.Schema({
     combinations: [{
         id: String,
         values: { type: Map, of: String },
-        stock: Number
+        stock: Number,
+        price: Number
     }]
 }, {
     timestamps: true,
