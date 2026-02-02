@@ -34,18 +34,40 @@ const getProductById = asyncHandler(async (req, res) => {
 // @route   POST /api/products
 // @access  Private/Admin
 const createProduct = asyncHandler(async (req, res) => {
+    const {
+        name,
+        price,
+        description,
+        images,
+        category,
+        stock,
+        attributes,
+        combinations
+    } = req.body;
+
     const product = new Product({
-        name: 'Sample name',
-        slug: 'sample-name-' + Date.now(),
-        price: 0,
-        user: req.user._id, // if we want to track who created it
-        images: ['/images/sample.jpg'],
-        category: 'technology',
-        countInStock: 0,
+        name,
+        price,
+        user: req.user._id,
+        images: images || [],
+        category,
+        countInStock: stock, // Keeping for backward compatibility if needed, but 'stock' is main
+        stock,
         numReviews: 0,
-        description: 'Sample description',
-        stock: 0
+        description,
+        attributes,
+        combinations
     });
+
+    // Create unique slug
+    let slug = name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
+
+    // Check if slug exists
+    const slugExists = await Product.findOne({ slug });
+    if (slugExists) {
+        slug = `${slug}-${Date.now()}`;
+    }
+    product.slug = slug;
 
     const createdProduct = await product.save();
     res.status(201).json(createdProduct);
