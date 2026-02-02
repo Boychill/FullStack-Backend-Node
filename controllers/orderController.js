@@ -97,7 +97,12 @@ const addOrderItems = asyncHandler(async (req, res) => {
             totalPrice,
         });
 
+        console.log('--- Creating Order ---');
+        console.log('User:', req.user._id);
+        console.log('Total Price:', totalPrice);
+
         const createdOrder = await order.save();
+        console.log('Order Saved:', createdOrder._id);
 
         res.status(201).json(createdOrder);
     }

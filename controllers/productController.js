@@ -59,6 +59,9 @@ const createProduct = asyncHandler(async (req, res) => {
         combinations
     });
 
+    console.log('--- Creating Product ---');
+    console.log('Payload:', req.body);
+
     // Create unique slug
     let slug = name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
 
@@ -70,6 +73,7 @@ const createProduct = asyncHandler(async (req, res) => {
     product.slug = slug;
 
     const createdProduct = await product.save();
+    console.log('Product Saved:', createdProduct._id);
     res.status(201).json(createdProduct);
 });
 
