@@ -172,7 +172,7 @@ const getMyOrders = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const getOrders = asyncHandler(async (req, res) => {
     console.log('--- getOrders (Admin) Request ---');
-    const orders = await Order.find({}).populate('user', 'id name').sort({ createdAt: -1 });
+    const orders = await Order.find({}).populate('user', 'name email').sort({ createdAt: -1 });
     console.log(`Found total ${orders.length} orders`);
     res.json(orders);
 });
