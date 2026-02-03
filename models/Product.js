@@ -6,10 +6,10 @@ const productSchema = mongoose.Schema({
     description: { type: String, required: true },
     price: { type: Number, required: true },
     category: { type: String, required: true },
-    images: [{ type: String }],
+    images: [String],
     // Specific attributes
-    sizes: [{ type: String }],
-    colors: [{ type: String }],
+    sizes: [String],
+    colors: [String],
     material: { type: String },
     specs: {
         ram: String,
@@ -23,11 +23,11 @@ const productSchema = mongoose.Schema({
     featured: { type: Boolean, default: false },
     attributes: [{
         name: String,
-        options: [{ type: String }]
+        options: [String]
     }],
     combinations: [{
         id: String,
-        values: { type: Map, of: String },
+        values: Object, // Changed from Map to Object for flexibility
         stock: Number,
         price: Number
     }]
