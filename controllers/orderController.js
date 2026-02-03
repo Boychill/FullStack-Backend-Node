@@ -158,7 +158,12 @@ const updateOrderToPaid = asyncHandler(async (req, res) => {
 // @route   GET /api/orders/myorders
 // @access  Private
 const getMyOrders = asyncHandler(async (req, res) => {
+    console.log('--- getMyOrders Request ---');
+    console.log('User ID from Token:', req.user._id);
+
     const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
+
+    console.log(`Found ${orders.length} orders for user ${req.user._id}`);
     res.json(orders);
 });
 
@@ -166,7 +171,9 @@ const getMyOrders = asyncHandler(async (req, res) => {
 // @route   GET /api/orders
 // @access  Private/Admin
 const getOrders = asyncHandler(async (req, res) => {
+    console.log('--- getOrders (Admin) Request ---');
     const orders = await Order.find({}).populate('user', 'id name').sort({ createdAt: -1 });
+    console.log(`Found total ${orders.length} orders`);
     res.json(orders);
 });
 
