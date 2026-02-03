@@ -16,76 +16,77 @@ const addOrderItems = asyncHandler(async (req, res) => {
         totalPrice,
     } = req.body;
 
-    if (orderItems && orderItems.length === 0) {
-        res.status(400);
-        throw new Error('No order items');
-        return;
-    } else {
-        // STOCK AUDIT LOGIC
-        // We need to iterate over items and check/deduct stock
-        // This should be done transactionally or carefully
+    try {
+        if (!orderItems || orderItems.length === 0) {
+            res.status(400);
+            throw new Error('No order items');
+        }
 
+        const createdOrders = [];
+
+        // Transaction check safety
         for (const item of orderItems) {
             const product = await Product.findById(item.product);
 
             if (!product) {
                 res.status(404);
-                throw new Error(`Product not found: ${item.name}`);
+                throw new Error(`Producto no encontrado: ${item.name}`);
             }
 
-            // If it's a variant purchase
+            // Safe validation for variants
             if (item.variants && Object.keys(item.variants).length > 0) {
-                // Find matching combination
-                const combination = product.combinations.find(c => {
-                    // Convert Map to Object for comparison if needed, generally stored as Object in orderItems
-                    // In Order model variants is Map, but incoming JSON is object
-                    // We assume item.variants is a plain object here from JSON
 
-                    // Comparison logic:
-                    // item.variants { Size: "L", Color: "Red" }
-                    // combination.values { Size: "L", Color: "Red" } (Stored as Map in DB but hydrated as Map/Object)
+                // Safety check: Product MUST have combinations array
+                if (!product.combinations || !Array.isArray(product.combinations)) {
+                    // If product has no combinations but user selected variants, logic mismatch fallback
+                    // Just deduct main stock or throw error? Let's throw helpful error
+                    if (product.stock < item.qty) {
+                        res.status(400);
+                        throw new Error(`Stock insuficiente para ${product.name}`);
+                    }
+                    product.stock -= item.qty;
+                    console.warn(`Product ${product.name} has no combinations but variants were requested. Deducted main stock.`);
+                } else {
+                    // Normal Variant Logic
+                    const combination = product.combinations.find(c => {
+                        try {
+                            const comboValues = c.values instanceof Map ? Object.fromEntries(c.values) : (c.values || {});
+                            const keysA = Object.keys(item.variants);
+                            const keysB = Object.keys(comboValues);
+                            if (keysA.length !== keysB.length) return false;
+                            return keysA.every(key => String(comboValues[key]) === String(item.variants[key]));
+                        } catch (err) {
+                            return false;
+                        }
+                    });
 
-                    // Simple approach: Check if every key/val matches
-                    const comboValues = combination.values instanceof Map ? Object.fromEntries(combination.values) : combination.values;
+                    if (!combination) {
+                        res.status(400);
+                        throw new Error(`Variante no disponible: ${Object.values(item.variants).join('/')}`);
+                    }
 
-                    // Compare keys lengths first
-                    const keysA = Object.keys(item.variants);
-                    const keysB = Object.keys(comboValues);
-                    if (keysA.length !== keysB.length) return false;
+                    if (combination.stock < item.qty) {
+                        res.status(400);
+                        throw new Error(`Stock insuficiente para ${product.name} (${Object.values(item.variants).join('/')}). Disponible: ${combination.stock}`);
+                    }
 
-                    return keysA.every(key => comboValues[key] === item.variants[key]);
-                });
-
-                if (!combination) {
-                    res.status(400);
-                    throw new Error(`Variant not found for product ${product.name}`);
+                    // Deduct stock
+                    combination.stock -= item.qty;
+                    product.stock -= item.qty; // Keep sync
                 }
-
-                if (combination.stock < item.qty) {
-                    res.status(400);
-                    throw new Error(`Not enough stock for ${product.name} (Variant). Available: ${combination.stock}`);
-                }
-
-                // Deduct stock form variant
-                combination.stock -= item.qty;
-
-                // Deduct from total stock as well
-                product.stock -= item.qty;
 
             } else {
-                // Main product stock check (no variants)
+                // Main product stock check
                 if (product.stock < item.qty) {
                     res.status(400);
-                    throw new Error(`Not enough stock for ${product.name}. Available: ${product.stock}`);
+                    throw new Error(`Stock insuficiente para ${product.name}. Disponible: ${product.stock}`);
                 }
                 product.stock -= item.qty;
             }
 
-            // Save product with updated stock
             await product.save();
         }
 
-        // If we survived the validation loop, create the order
         const order = new Order({
             orderItems,
             user: req.user._id,
@@ -97,14 +98,17 @@ const addOrderItems = asyncHandler(async (req, res) => {
             totalPrice,
         });
 
-        console.log('--- Creating Order ---');
-        console.log('User:', req.user._id);
-        console.log('Total Price:', totalPrice);
-
         const createdOrder = await order.save();
-        console.log('Order Saved:', createdOrder._id);
-
         res.status(201).json(createdOrder);
+
+    } catch (error) {
+        console.error('CRITICAL ORDER ERROR:', error);
+        res.status(res.statusCode === 200 ? 500 : res.statusCode);
+        // Ensure we send JSON, not let express default HTML handler take over if possible
+        res.json({
+            message: error.message || 'Error interno del servidor procesando el pedido.',
+            stack: process.env.NODE_ENV === 'production' ? null : error.stack
+        });
     }
 });
 
