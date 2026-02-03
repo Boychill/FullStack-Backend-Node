@@ -72,9 +72,15 @@ const createProduct = asyncHandler(async (req, res) => {
     }
     product.slug = slug;
 
-    const createdProduct = await product.save();
-    console.log('Product Saved:', createdProduct._id);
-    res.status(201).json(createdProduct);
+    try {
+        const createdProduct = await product.save();
+        console.log('Product Saved:', createdProduct._id);
+        res.status(201).json(createdProduct);
+    } catch (error) {
+        console.error('Error saving product:', error);
+        res.status(400);
+        throw new Error('Validación fallida: ' + error.message);
+    }
 });
 
 // @desc    Update a product
