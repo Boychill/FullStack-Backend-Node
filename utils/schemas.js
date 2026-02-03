@@ -27,7 +27,7 @@ const productSchema = Joi.object({
     rating: Joi.number(),
     reviews: Joi.number(),
     featured: Joi.boolean()
-});
+}).unknown(true);
 
 module.exports = {
     registerSchema,
